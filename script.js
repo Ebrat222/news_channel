@@ -8,17 +8,27 @@ function reload() {
 }
 
 async function fetchNews(query) {
-	const res = await fetch(`${url}${query}&apiKey=${API_KEY}`);
-	const data = await res.json();
-	bindData(data.articles);
+	try {
+		const res = await fetch(`${url}${query}&apiKey=${API_KEY}`);
+		if (!res.ok) throw new Error("Failed to fetch news");
+		const data = await res.json();
+		if (!data.articles || data.articles.length === 0) {
+			document.getElementById("card_container").innerHTML = "<p>No news found.</p>";
+			return;
+		}
+		bindData(data.articles);
+	} catch (error) {
+		console.error("Error:", error);
+		document.getElementById("card_container").innerHTML = "<p>Error fetching news.</p>";
+	}
 }
 
 function bindData(articles) {
 	const cardContainer = document.getElementById('card_container');
 	const newsCardTemplate = document.getElementById('template_news_card');
-	
+
 	cardContainer.innerHTML = '';
-	
+
 	articles.forEach(article => {
 		if (!article.urlToImage) return;
 		const cardClone = newsCardTemplate.content.cloneNode(true);
@@ -28,19 +38,12 @@ function bindData(articles) {
 }
 
 function fillDataInCard(cardClone, article) {
-	const newsImg = cardClone.querySelector('#news-img');
-	const newsTitle = cardClone.querySelector('#news-title');
-	const newsSource = cardClone.querySelector('#news-source');
-	const newsDesc = cardClone.querySelector('#news-desc');
+	cardClone.querySelector('#news-img').src = article.urlToImage || "https://placehold.co/400x200";
+	cardClone.querySelector('#news-title').textContent = article.title;
+	cardClone.querySelector('#news-desc').textContent = article.description || "No description available.";
 	
-	newsImg.src = article.urlToImage;
-	newsTitle.innerHTML = article.title;
-	newsDesc.innerHTML = article.description;
-	
-	const date = new Date(article.publishedAt).toLocaleString('en-US', {
-		timeZone: "Asia/Jakarta"
-	});
-	newsSource.innerHTML = `${article.source.name} • ${date}`;
+	const date = new Date(article.publishedAt).toLocaleString('en-US', { timeZone: "Asia/Dhaka" });
+	cardClone.querySelector('#news-source').textContent = `${article.source.name} • ${date}`;
 	
 	cardClone.querySelector(".card").addEventListener("click", () => {
 		window.open(article.url, "_blank");
@@ -50,19 +53,18 @@ function fillDataInCard(cardClone, article) {
 let curSelectedNav = null;
 function onNavItemClick(id) {
 	fetchNews(id);
-	const navItem = document.getElementById(id);
 	curSelectedNav?.classList.remove('active');
-	curSelectedNav = navItem;
+	curSelectedNav = document.getElementById(id);
 	curSelectedNav.classList.add('active');
 }
 
-const searchButton = document.getElementById("search-button");
-const searchText = document.getElementById("search-text");
+document.getElementById("search-button").addEventListener('click', () => {
+	const query = document.getElementById("search-text").value;
+	if (query) fetchNews(query);
+});
 
-searchButton.addEventListener('click', () => {
-	const query = searchText.value;
-	if (!query) return;
-	fetchNews(query);
-	curSelectedNav?.classList.remove('active');
-	curSelectedNav = null;
+document.getElementById("search-text").addEventListener("keypress", (event) => {
+	if (event.key === "Enter") {
+		document.getElementById("search-button").click();
+	}
 });
